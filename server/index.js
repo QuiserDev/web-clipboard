@@ -2,12 +2,23 @@ import express from 'express'
 import cors from 'cors'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
 import clipboardRoutes from './routes/clipboard.js'
 import { initDatabase } from './database/db.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+// 使用绝对路径加载环境变量
+const envPath = path.join(__dirname, '../.env.production');
+console.log('Loading env file from:', envPath);
+dotenv.config({ path: envPath })
+
+// 调试信息
+console.log('Environment variables loading:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT from env:', process.env.PORT);
 
 const app = express()
 const PORT = process.env.PORT || 5000
