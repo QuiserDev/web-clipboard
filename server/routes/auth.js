@@ -4,7 +4,11 @@ import jwt from 'jsonwebtoken'
 import { getDB } from '../database/db.js'
 
 const router = express.Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+
+// 获取JWT_SECRET的函数，确保总是获取最新的环境变量值
+function getJwtSecret() {
+  return process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+}
 
 // 中间件：验证JWT token
 function authenticateToken(req, res, next) {
@@ -15,7 +19,7 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ message: '访问令牌缺失' })
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, getJwtSecret(), (err, user) => {
     if (err) {
       return res.status(403).json({ message: '令牌无效' })
     }
@@ -64,7 +68,7 @@ router.post('/register', async (req, res) => {
           // 生成JWT token
           const token = jwt.sign(
             { id: this.lastID, email, name },
-            JWT_SECRET,
+            getJwtSecret(),
             { expiresIn: '24h' }
           )
 
@@ -112,7 +116,7 @@ router.post('/login', async (req, res) => {
     // 生成JWT token
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '24h' }
     )
 

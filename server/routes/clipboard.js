@@ -16,6 +16,11 @@ const uploadsDir = path.join(__dirname, '../uploads')
 import jwt from 'jsonwebtoken'
 
 // 中间件：验证JWT token
+// 获取JWT_SECRET的函数，确保总是获取最新的环境变量值
+function getJwtSecret() {
+  return process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+}
+
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
@@ -23,11 +28,15 @@ function authenticateToken(req, res, next) {
   if (!token) {
     return res.status(401).json({ message: '访问令牌缺失' })
   }
+  
+  // 添加调试信息
+  console.log('JWT_SECRET from env:', process.env.JWT_SECRET);
+  console.log('Using JWT_SECRET:', getJwtSecret());
+  console.log('Token to verify:', token);
 
-  const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, getJwtSecret(), (err, user) => {
     if (err) {
+      console.log('Token verification error:', err.message);
       return res.status(403).json({ message: '令牌无效' })
     }
     req.user = user

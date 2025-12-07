@@ -4,18 +4,29 @@ import ImageClipboard from './clipboards/ImageClipboard'
 import FileClipboard from './clipboards/FileClipboard'
 import axios from 'axios'
 import { useClipboard } from '../contexts/ClipboardContext'
+import { useAuth } from '../contexts/AuthContext'
 
 function Dashboard() {
   const [textItems, setTextItems] = useState([])
   const [imageItems, setImageItems] = useState([])
   const [fileItems, setFileItems] = useState([])
   const { clipboardUpdate } = useClipboard()
+  const { user } = useAuth()
 
   useEffect(() => {
     fetchRecentItems()
-  }, [clipboardUpdate])
+  }, [clipboardUpdate, user])
 
   const fetchRecentItems = async () => {
+    // 确保用户已认证
+    if (!user) return;
+    
+    // 确保axios有正确的认证头部
+    const token = localStorage.getItem('token')
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    }
+
     try {
       const [textRes, imageRes, fileRes] = await Promise.all([
         axios.get('/api/clipboard/text?limit=5'),
