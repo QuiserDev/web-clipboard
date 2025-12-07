@@ -34,12 +34,38 @@ function TextClipboard({ items, onItemAdd, onItemDelete }) {
 
   const copyToClipboard = async (content, event) => {
     try {
-      await navigator.clipboard.writeText(content)
-      // 使用Toast显示成功消息
-      setToast({
-        message: '✓ 已复制到剪贴板',
-        type: 'success'
-      })
+      // 检查浏览器是否支持Clipboard API
+      if (navigator.clipboard && window.isSecureContext) {
+        // 使用现代Clipboard API
+        await navigator.clipboard.writeText(content)
+        // 使用Toast显示成功消息
+        setToast({
+          message: '✓ 已复制到剪贴板',
+          type: 'success'
+        })
+      } else {
+        // 降级到传统方法
+        const textArea = document.createElement('textarea')
+        textArea.value = content
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        textArea.style.top = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        
+        const successful = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        
+        if (successful) {
+          setToast({
+            message: '✓ 已复制到剪贴板',
+            type: 'success'
+          })
+        } else {
+          throw new Error('复制命令失败')
+        }
+      }
     } catch (error) {
       console.error('复制失败:', error)
       // 使用Toast显示错误消息
