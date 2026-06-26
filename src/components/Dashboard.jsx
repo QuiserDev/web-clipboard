@@ -18,10 +18,8 @@ function Dashboard() {
   }, [clipboardUpdate, user])
 
   const fetchRecentItems = async () => {
-    // 确保用户已认证
-    if (!user) return;
+    if (!user) return
     
-    // 确保axios有正确的认证头部
     const token = localStorage.getItem('token')
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
@@ -54,22 +52,17 @@ function Dashboard() {
     setFileItems(prev => [newItem, ...prev].slice(0, 5))
   }
 
-  const handleTextDelete = async (itemId) => {
+  // #11: 仅前端过滤，不发起不必要的二次请求
+  const handleTextDelete = (itemId) => {
     setTextItems(prev => prev.filter(item => item.id !== itemId))
-    // 删除后重新获取数据以保持显示最新的5个项目
-    await fetchRecentItems()
   }
 
-  const handleImageDelete = async (itemId) => {
+  const handleImageDelete = (itemId) => {
     setImageItems(prev => prev.filter(item => item.id !== itemId))
-    // 删除后重新获取数据以保持显示最新的5个项目
-    await fetchRecentItems()
   }
 
-  const handleFileDelete = async (itemId) => {
+  const handleFileDelete = (itemId) => {
     setFileItems(prev => prev.filter(item => item.id !== itemId))
-    // 删除后重新获取数据以保持显示最新的5个项目
-    await fetchRecentItems()
   }
 
   return (

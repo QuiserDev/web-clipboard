@@ -39,3 +39,7 @@ Thumbs.db
 # Runtime data
 tmp/
 temp/
+
+.env.production
+.env.example
+nohup.out

@@ -11,16 +11,8 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // 使用绝对路径加载环境变量
-const envPath = path.join(__dirname, '../.env.production');
-console.log('Loading env file from:', envPath);
+const envPath = path.join(__dirname, '../.env.production')
 dotenv.config({ path: envPath })
-
-// 调试信息
-console.log('Environment variables loading:');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('PORT from env:', process.env.PORT);
-console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
-console.log('JWT_SECRET length:', process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0);
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -40,6 +32,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 // 处理前端路由（SPA）
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'))
+})
+
+// 全局错误处理中间件
+app.use((err, req, res, next) => {
+  console.error('未处理的服务器错误:', err.message)
+  res.status(500).json({ message: '服务器内部错误' })
 })
 
 // 初始化数据库并启动服务器

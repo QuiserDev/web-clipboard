@@ -15,8 +15,14 @@ if (!fs.existsSync(uploadsDir)) {
 // 数据库文件路径
 const dbPath = path.join(__dirname, 'clipboard.db')
 
+// 单例数据库连接
+let db = null
+
 export function getDB() {
-  return new sqlite3.Database(dbPath)
+  if (!db) {
+    db = new sqlite3.Database(dbPath)
+  }
+  return db
 }
 
 export async function initDatabase() {

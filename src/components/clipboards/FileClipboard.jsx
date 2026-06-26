@@ -9,6 +9,8 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [itemToDelete, setItemToDelete] = useState(null)
   const [visibleButtons, setVisibleButtons] = useState({})
+  const [uploadMessage, setUploadMessage] = useState(null) // React 状态替代 DOM 操作
+  const [deleteError, setDeleteError] = useState(false)
   const fileInputRef = useRef(null)
   const navigate = useNavigate()
 
@@ -39,6 +41,12 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
     event.currentTarget.classList.remove('dragover')
   }
 
+  // 显示上传区域的临时消息
+  const showUploadMessage = (message) => {
+    setUploadMessage(message)
+    setTimeout(() => setUploadMessage(null), 2000)
+  }
+
   const uploadFiles = async (files) => {
     const fileArray = Array.from(files)
     
@@ -58,14 +66,7 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
       }
     } catch (error) {
       console.error('上传文件失败:', error)
-      // 使用更美观的错误提示
-      const uploadArea = document.querySelector('.upload-area')
-      const originalHTML = uploadArea.innerHTML
-      uploadArea.innerHTML = '<p style="color: #dc3545;">✗ 上传失败，请重试</p>'
-      
-      setTimeout(() => {
-        uploadArea.innerHTML = originalHTML
-      }, 2000)
+      showUploadMessage('✗ 上传失败，请重试')
     }
     
     setLoading(false)
@@ -83,27 +84,6 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
     link.click()
   }
 
-  const getFileIcon = (filename) => {
-    const ext = filename.split('.').pop().toLowerCase()
-    const icons = {
-      pdf: '📄',
-      doc: '📝',
-      docx: '📝',
-      xls: '📊',
-      xlsx: '📊',
-      ppt: '📽️',
-      pptx: '📽️',
-      zip: '📦',
-      rar: '📦',
-      txt: '📃',
-      js: '⚙️',
-      html: '🌐',
-      css: '🎨',
-      json: '📋'
-    }
-    return icons[ext] || '📎'
-  }
-
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
@@ -119,12 +99,14 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
   const handleDeleteClick = (item) => {
     setItemToDelete(item)
     setShowDeleteModal(true)
+    setDeleteError(false)
   }
 
   const handleDeleteConfirm = async () => {
     if (!itemToDelete) return
 
     setDeletingId(itemToDelete.id)
+    setDeleteError(false)
     
     try {
       await axios.delete('/api/clipboard/file', {
@@ -142,18 +124,8 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
       setItemToDelete(null)
     } catch (error) {
       console.error('删除失败:', error)
-      // 使用更美观的错误提示
-      const deleteButton = document.querySelector('.delete-confirm-btn')
-      if (deleteButton) {
-        const originalText = deleteButton.textContent
-        deleteButton.textContent = '✗ 删除失败'
-        deleteButton.style.backgroundColor = '#dc3545'
-        
-        setTimeout(() => {
-          deleteButton.textContent = originalText
-          deleteButton.style.backgroundColor = ''
-        }, 2000)
-      }
+      setDeleteError(true)
+      setTimeout(() => setDeleteError(false), 2000)
     }
     
     setDeletingId(null)
@@ -162,6 +134,7 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
   const handleDeleteCancel = () => {
     setShowDeleteModal(false)
     setItemToDelete(null)
+    setDeleteError(false)
   }
 
   return (
@@ -175,7 +148,7 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
         onDragLeave={handleDragLeave}
         onClick={() => fileInputRef.current?.click()}
         tabIndex="0"
-        style={{ outline: 'none' }}
+        style={{ outline: 'none', cursor: 'pointer' }}
       >
         <input
           ref={fileInputRef}
@@ -185,9 +158,13 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
           style={{ display: 'none' }}
         />
         
-        <div>
-          <p>📎 点击选择文件 或 拖拽文件到这里</p>
-        </div>
+        {uploadMessage ? (
+          <p style={{ color: '#dc3545' }}>{uploadMessage}</p>
+        ) : (
+          <div>
+            <p>📎 点击选择文件 或 拖拽文件到这里</p>
+          </div>
+        )}
       </div>
       
       <button 
@@ -285,8 +262,9 @@ function FileClipboard({ items, onItemAdd, onItemDelete }) {
                 onClick={handleDeleteConfirm}
                 className="btn btn-danger delete-confirm-btn"
                 disabled={deletingId}
+                style={deleteError ? { backgroundColor: '#dc3545' } : {}}
               >
-                {deletingId ? '删除中...' : '确认删除'}
+                {deleteError ? '✗ 删除失败' : deletingId ? '删除中...' : '确认删除'}
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 
@@ -7,8 +7,16 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
   const [deletingId, setDeletingId] = useState(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [itemToDelete, setItemToDelete] = useState(null)
+  const [uploadMessage, setUploadMessage] = useState(null) // React 状态替代 DOM 操作
+  const [deleteError, setDeleteError] = useState(false)
   const fileInputRef = useRef(null)
   const navigate = useNavigate()
+  const onItemAddRef = useRef(onItemAdd)
+
+  // 保持 ref 与最新 prop 同步
+  useEffect(() => {
+    onItemAddRef.current = onItemAdd
+  }, [onItemAdd])
 
   const handleFileSelect = async (event) => {
     const file = event.target.files[0]
@@ -27,7 +35,7 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
       if (imageFile) {
         await uploadImage(imageFile)
       } else {
-        alert('请选择图片文件')
+        showUploadMessage('✗ 请选择图片文件', 'error')
       }
     }
   }
@@ -42,31 +50,35 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
     event.currentTarget.classList.remove('dragover')
   }
 
-  const handlePaste = async (event) => {
-    const items = event.clipboardData?.items
-    if (items) {
-      for (let item of items) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile()
-          if (file) {
-            await uploadImage(file)
-            break
+  // 显示上传区域的临时消息
+  const showUploadMessage = (message, type) => {
+    setUploadMessage({ message, type })
+    setTimeout(() => setUploadMessage(null), 2000)
+  }
+
+  // #10: 在 document 级别监听粘贴事件
+  useEffect(() => {
+    const onPaste = (event) => {
+      const items = event.clipboardData?.items
+      if (items) {
+        for (let item of items) {
+          if (item.type.startsWith('image/')) {
+            const file = item.getAsFile()
+            if (file) {
+              uploadImage(file)
+              break
+            }
           }
         }
       }
     }
-  }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [])
 
   const uploadImage = async (file) => {
     if (!file.type.startsWith('image/')) {
-      // 使用更美观的提示方式
-      const uploadArea = document.querySelector('.upload-area')
-      const originalHTML = uploadArea.innerHTML
-      uploadArea.innerHTML = '<p style="color: #dc3545;">✗ 请选择图片文件</p>'
-      
-      setTimeout(() => {
-        uploadArea.innerHTML = originalHTML
-      }, 2000)
+      showUploadMessage('✗ 请选择图片文件', 'error')
       return
     }
 
@@ -81,17 +93,10 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
           'Content-Type': 'multipart/form-data'
         }
       })
-      onItemAdd(response.data.item)
+      onItemAddRef.current(response.data.item)
     } catch (error) {
       console.error('上传图片失败:', error)
-      // 使用更美观的错误提示
-      const uploadArea = document.querySelector('.upload-area')
-      const originalHTML = uploadArea.innerHTML
-      uploadArea.innerHTML = '<p style="color: #dc3545;">✗ 上传失败，请重试</p>'
-      
-      setTimeout(() => {
-        uploadArea.innerHTML = originalHTML
-      }, 2000)
+      showUploadMessage('✗ 上传失败，请重试', 'error')
     }
     
     setLoading(false)
@@ -111,12 +116,14 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
   const handleDeleteClick = (item) => {
     setItemToDelete(item)
     setShowDeleteModal(true)
+    setDeleteError(false)
   }
 
   const handleDeleteConfirm = async () => {
     if (!itemToDelete) return
 
     setDeletingId(itemToDelete.id)
+    setDeleteError(false)
     
     try {
       await axios.delete('/api/clipboard/image', {
@@ -134,18 +141,8 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
       setItemToDelete(null)
     } catch (error) {
       console.error('删除失败:', error)
-      // 使用更美观的错误提示
-      const deleteButton = document.querySelector('.delete-confirm-btn')
-      if (deleteButton) {
-        const originalText = deleteButton.textContent
-        deleteButton.textContent = '✗ 删除失败'
-        deleteButton.style.backgroundColor = '#dc3545'
-        
-        setTimeout(() => {
-          deleteButton.textContent = originalText
-          deleteButton.style.backgroundColor = ''
-        }, 2000)
-      }
+      setDeleteError(true)
+      setTimeout(() => setDeleteError(false), 2000)
     }
     
     setDeletingId(null)
@@ -154,6 +151,7 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
   const handleDeleteCancel = () => {
     setShowDeleteModal(false)
     setItemToDelete(null)
+    setDeleteError(false)
   }
 
   return (
@@ -165,10 +163,9 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        onPaste={handlePaste}
         onClick={() => fileInputRef.current?.click()}
         tabIndex="0"
-        style={{ outline: 'none' }}
+        style={{ outline: 'none', cursor: 'pointer' }}
       >
         <input
           ref={fileInputRef}
@@ -178,12 +175,18 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
           style={{ display: 'none' }}
         />
         
-        <div>
-          <p>📎 点击选择图片 或 拖拽图片到这里</p>
-          <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>
-            支持右键粘贴图片
+        {uploadMessage ? (
+          <p style={{ color: uploadMessage.type === 'error' ? '#dc3545' : '#28a745' }}>
+            {uploadMessage.message}
           </p>
-        </div>
+        ) : (
+          <div>
+            <p>📎 点击选择图片 或 拖拽图片到这里</p>
+            <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>
+              支持 Ctrl+V 粘贴图片
+            </p>
+          </div>
+        )}
       </div>
       
       <button 
@@ -287,8 +290,9 @@ function ImageClipboard({ items, onItemAdd, onItemDelete }) {
                 onClick={handleDeleteConfirm}
                 className="btn btn-danger delete-confirm-btn"
                 disabled={deletingId}
+                style={deleteError ? { backgroundColor: '#dc3545' } : {}}
               >
-                {deletingId ? '删除中...' : '确认删除'}
+                {deleteError ? '✗ 删除失败' : deletingId ? '删除中...' : '确认删除'}
               </button>
             </div>
           </div>

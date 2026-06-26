@@ -10,7 +10,7 @@ function ChangePassword() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   
-  const { changePassword } = useAuth()
+  const { changePassword, logout } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
@@ -38,16 +38,12 @@ function ChangePassword() {
     const result = await changePassword(currentPassword, newPassword)
     
     if (result.success) {
-      setSuccess('密码修改成功！请重新登录')
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      
-      // 延迟2秒后清除登录态并跳转到登录界面
+      setSuccess('密码修改成功！即将跳转到登录页...')
+      // 立即清除登录态并跳转
+      logout()
       setTimeout(() => {
-        logout()
         navigate('/login')
-      }, 2000)
+      }, 1500)
     } else {
       setError(result.error)
     }

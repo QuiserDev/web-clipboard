@@ -9,10 +9,13 @@ function TextClipboard({ items, onItemAdd, onItemDelete }) {
   const [deletingId, setDeletingId] = useState(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [itemToDelete, setItemToDelete] = useState(null)
+  const [deleteError, setDeleteError] = useState(false)
   const [toast, setToast] = useState(null)
   const navigate = useNavigate()
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    
     if (!text.trim()) {
       alert('请输入文字内容')
       return
@@ -34,17 +37,13 @@ function TextClipboard({ items, onItemAdd, onItemDelete }) {
 
   const copyToClipboard = async (content, event) => {
     try {
-      // 检查浏览器是否支持Clipboard API
       if (navigator.clipboard && window.isSecureContext) {
-        // 使用现代Clipboard API
         await navigator.clipboard.writeText(content)
-        // 使用Toast显示成功消息
         setToast({
           message: '✓ 已复制到剪贴板',
           type: 'success'
         })
       } else {
-        // 降级到传统方法
         const textArea = document.createElement('textarea')
         textArea.value = content
         textArea.style.position = 'fixed'
@@ -68,7 +67,6 @@ function TextClipboard({ items, onItemAdd, onItemDelete }) {
       }
     } catch (error) {
       console.error('复制失败:', error)
-      // 使用Toast显示错误消息
       setToast({
         message: '✗ 复制失败，请重试',
         type: 'error'
@@ -83,12 +81,14 @@ function TextClipboard({ items, onItemAdd, onItemDelete }) {
   const handleDeleteClick = (item) => {
     setItemToDelete(item)
     setShowDeleteModal(true)
+    setDeleteError(false)
   }
 
   const handleDeleteConfirm = async () => {
     if (!itemToDelete) return
 
     setDeletingId(itemToDelete.id)
+    setDeleteError(false)
     
     try {
       await axios.delete('/api/clipboard/text', {
@@ -103,18 +103,8 @@ function TextClipboard({ items, onItemAdd, onItemDelete }) {
       setItemToDelete(null)
     } catch (error) {
       console.error('删除失败:', error)
-      // 使用更美观的错误提示
-      const deleteButton = document.querySelector('.delete-confirm-btn')
-      if (deleteButton) {
-        const originalText = deleteButton.textContent
-        deleteButton.textContent = '✗ 删除失败'
-        deleteButton.style.backgroundColor = '#dc3545'
-        
-        setTimeout(() => {
-          deleteButton.textContent = originalText
-          deleteButton.style.backgroundColor = ''
-        }, 2000)
-      }
+      setDeleteError(true)
+      setTimeout(() => setDeleteError(false), 2000)
     }
     
     setDeletingId(null)
@@ -123,6 +113,7 @@ function TextClipboard({ items, onItemAdd, onItemDelete }) {
   const handleDeleteCancel = () => {
     setShowDeleteModal(false)
     setItemToDelete(null)
+    setDeleteError(false)
   }
 
   return (
@@ -238,8 +229,9 @@ function TextClipboard({ items, onItemAdd, onItemDelete }) {
                 onClick={handleDeleteConfirm}
                 className="btn btn-danger delete-confirm-btn"
                 disabled={deletingId}
+                style={deleteError ? { backgroundColor: '#dc3545' } : {}}
               >
-                {deletingId ? '删除中...' : '确认删除'}
+                {deleteError ? '✗ 删除失败' : deletingId ? '删除中...' : '确认删除'}
               </button>
             </div>
           </div>
